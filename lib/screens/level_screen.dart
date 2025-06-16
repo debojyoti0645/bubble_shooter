@@ -47,7 +47,7 @@ class _LevelScreenState extends State<LevelScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final levels = List.generate(200, (i) => i + 1);
+    final levels = List.generate(5000, (i) => i + 1);
 
     return Container(
       decoration: BoxDecoration(

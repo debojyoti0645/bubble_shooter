@@ -8,8 +8,16 @@ import 'ball_widget.dart';
 class TubeWidget extends StatelessWidget {
   final Tube tube;
   final bool isSelected;
+  final bool isHintSource; // Add this
+  final bool isHintTarget; // Add this
 
-  const TubeWidget({super.key, required this.tube, this.isSelected = false});
+  const TubeWidget({
+    super.key,
+    required this.tube,
+    this.isSelected = false,
+    this.isHintSource = false,
+    this.isHintTarget = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +49,14 @@ class TubeWidget extends StatelessWidget {
                 bottomRight: Radius.circular(18),
               ),
               border: Border.all(
-                color: isSelected
-                    ? Colors.deepPurple.shade400.withOpacity(0.8)
-                    : Colors.white.withOpacity(0.3),
-                width: isSelected ? 3 : 2,
+                color: isHintSource
+                    ? Colors.amber.shade400.withOpacity(0.8)
+                    : isHintTarget
+                        ? Colors.green.shade400.withOpacity(0.8)
+                        : isSelected
+                            ? Colors.deepPurple.shade400.withOpacity(0.8)
+                            : Colors.white.withOpacity(0.3),
+                width: isHintSource || isHintTarget || isSelected ? 3 : 2,
               ),
               boxShadow: [
                 BoxShadow(

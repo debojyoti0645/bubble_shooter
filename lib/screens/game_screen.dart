@@ -1,3 +1,6 @@
+import 'dart:collection';
+
+import 'package:bubble_shooter/widgets/tutorial_overlay.dart';
 import 'package:flutter/material.dart';
 
 import '../models/ball.dart';
@@ -12,6 +15,14 @@ class GameScreen extends StatefulWidget {
 
   @override
   State<GameScreen> createState() => _GameScreenState();
+}
+
+class Move {
+  final int fromTube;
+  final int toTube;
+  final Ball ball;
+
+  Move(this.fromTube, this.toTube, this.ball);
 }
 
 class _GameScreenState extends State<GameScreen>
@@ -30,10 +41,24 @@ class _GameScreenState extends State<GameScreen>
   // Keep track of tube positions
   final Map<int, GlobalKey> tubeKeys = {};
 
+  // Add this property to store move history
+  final Queue<Move> moveHistory = Queue<Move>();
+  static const int maxUndoMoves = 5;
+  int remainingUndos = 5; // Total undos available to the player
+  int usedUndos = 0; // Add this new property
+
+  // Add these properties in _GameScreenState class
+  int remainingHints = 1; // Each level gets 1 hint
+  List<int>? hintMove; // Stores the source and destination tube indices
+
+  bool _showingTutorial = false;
+  bool _tutorialComplete = false;
+
   @override
   void initState() {
     super.initState();
     _initializeGame();
+    _checkShowTutorial();
 
     // Initialize animation
     _animationController = AnimationController(
@@ -61,23 +86,25 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _initializeGame() {
-    const int capacity = 4;  // Keep tube capacity constant
-    
+    remainingHints = 1; // Reset hints at start of level
+
+    const int capacity = 4; // Keep tube capacity constant
+
     // Determine number of tubes based on level
     int tubeCount;
     if (widget.level == 1) {
-      tubeCount = 3;  // First level: 3 tubes
+      tubeCount = 3; // First level: 3 tubes
     } else if (widget.level <= 10) {
-      tubeCount = 4;  // Levels 2-10: 4 tubes
+      tubeCount = 4; // Levels 2-10: 4 tubes
     } else if (widget.level <= 25) {
-      tubeCount = 5;  // Levels 11-25: 5 tubes
+      tubeCount = 5; // Levels 11-25: 5 tubes
     } else {
-      tubeCount = 6;  // Levels 26+: 6 tubes
+      tubeCount = 6; // Levels 26+: 6 tubes
     }
 
     // Calculate filled tubes (one less than total tubes for empty space)
     int filledTubes = tubeCount - 1;
-    
+
     // Select colors for the level
     List<Color> baseColors = [
       Colors.red,
@@ -87,7 +114,7 @@ class _GameScreenState extends State<GameScreen>
       Colors.orange,
       Colors.purple,
     ];
-    
+
     // Create balls list
     List<Ball> balls = [];
     for (int i = 0; i < filledTubes; i++) {
@@ -136,6 +163,9 @@ class _GameScreenState extends State<GameScreen>
           pickedTubeIndex = null;
           _pickedBallPosition = null;
         } else if (tappedTube.canAddBall(pickedBall!)) {
+          // Track the move before completing it
+          moveHistory.addFirst(Move(pickedTubeIndex!, index, pickedBall!));
+
           tappedTube.addBall(pickedBall!);
           pickedBall = null;
           pickedTubeIndex = null;
@@ -180,7 +210,7 @@ class _GameScreenState extends State<GameScreen>
                 const Text(
                   '🎉 Level Complete! 🎉',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.deepPurple,
                   ),
@@ -203,7 +233,7 @@ class _GameScreenState extends State<GameScreen>
                                   ? Icons.star_rounded
                                   : Icons.star_outline_rounded,
                               color: Colors.amber,
-                              size: 40,
+                              size: 60,
                             ),
                           ),
                         );
@@ -298,6 +328,68 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
+  // Replace the _undoMove method with this corrected version
+  void _undoMove() {
+    if (moveHistory.isEmpty || pickedBall != null || remainingUndos <= 0)
+      return;
+
+    setState(() {
+      final move = moveHistory.removeFirst();
+      remainingUndos--; // Decrease available undos
+
+      // Remove the ball from destination tube
+      final Ball ball = tubes[move.toTube].removeTopBall()!;
+
+      // Add it back to the source tube
+      tubes[move.fromTube].addBall(ball);
+    });
+  }
+
+  // Add this method to _GameScreenState class
+  void _showHint() {
+    if (remainingHints <= 0 || pickedBall != null) return;
+
+    setState(() {
+      // Find a valid move
+      hintMove = _findValidMove();
+      if (hintMove != null) {
+        remainingHints--;
+        // Show the hint for 2 seconds then clear it
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            setState(() {
+              hintMove = null;
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // Add this method to _GameScreenState class
+  List<int>? _findValidMove() {
+    for (int i = 0; i < tubes.length; i++) {
+      if (tubes[i].isEmpty) continue;
+
+      Ball topBall = tubes[i].balls.last;
+      for (int j = 0; j < tubes.length; j++) {
+        if (i == j) continue;
+        if (tubes[j].canAddBall(topBall)) {
+          return [i, j];
+        }
+      }
+    }
+    return null;
+  }
+
+  void _checkShowTutorial() {
+    if (widget.level == 1 && !_tutorialComplete) {
+      setState(() {
+        _showingTutorial = true;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -321,9 +413,88 @@ class _GameScreenState extends State<GameScreen>
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          // Add Undo Button
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                shape: BoxShape.circle,
+              ),
+              child: Stack(
+                children: [
+                  Icon(
+                    Icons.undo_rounded,
+                    color:
+                        (moveHistory.isEmpty || remainingUndos <= 0)
+                            ? Colors.grey
+                            : Colors.deepPurple.shade700,
+                  ),
+                  Positioned(
+                    right: 5,
+                    bottom: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(shape: BoxShape.circle),
+                      child: Text(
+                        '$remainingUndos', // Show remaining undos
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            onPressed:
+                (moveHistory.isEmpty || remainingUndos <= 0) ? null : _undoMove,
+          ),
+          // Hint Button
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                shape: BoxShape.circle,
+              ),
+              child: Stack(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color:
+                        remainingHints > 0
+                            ? Colors.amber.shade700
+                            : Colors.grey,
+                  ),
+                  if (remainingHints > 0)
+                    Positioned(
+                      right: -1,
+                      bottom: -4,
+                      child: Container(
+                        padding: const EdgeInsets.all(1),
+                        decoration: BoxDecoration(shape: BoxShape.circle),
+                        child: Text(
+                          '$remainingHints',
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            onPressed: remainingHints > 0 ? _showHint : null,
+          ),
+          // Refresh Button
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.9),
                 shape: BoxShape.circle,
@@ -336,13 +507,15 @@ class _GameScreenState extends State<GameScreen>
             onPressed: () {
               setState(() {
                 _initializeGame();
+                moveHistory.clear();
+                remainingUndos = maxUndoMoves; // Reset available undos
+                usedUndos = 0;
               });
             },
           ),
-          const SizedBox(width: 8),
         ],
         title: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.9),
             borderRadius: BorderRadius.circular(20),
@@ -355,16 +528,16 @@ class _GameScreenState extends State<GameScreen>
             ],
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.stars_rounded, color: Colors.amber, size: 28),
-              const SizedBox(width: 8),
+              const Icon(Icons.stars_rounded, color: Colors.amber, size: 22),
+              const SizedBox(width: 1),
               Text(
                 'Level ${widget.level}',
                 style: TextStyle(
                   color: Colors.deepPurple.shade700,
                   fontWeight: FontWeight.bold,
-                  fontSize: 22,
+                  fontSize: 16,
                 ),
               ),
             ],
@@ -405,6 +578,10 @@ class _GameScreenState extends State<GameScreen>
                           child: TubeWidget(
                             tube: tubes[index],
                             isSelected: index == pickedTubeIndex,
+                            isHintSource:
+                                hintMove != null && hintMove![0] == index,
+                            isHintTarget:
+                                hintMove != null && hintMove![1] == index,
                           ),
                         );
                       }),
@@ -428,6 +605,36 @@ class _GameScreenState extends State<GameScreen>
                           _floatingAnimation.value,
                       child: BallWidget(ball: pickedBall!, size: 45),
                     );
+                  },
+                ),
+
+              // Tutorial overlay
+              if (_showingTutorial)
+                TutorialOverlay(
+                  onComplete: () {
+                    setState(() {
+                      _showingTutorial = false;
+                      _tutorialComplete = true;
+                    });
+                  },
+                  screenSize: MediaQuery.of(context).size,
+                  buttonPositions: {
+                    // get the positions of the buttons from the game screen
+                    // position of the undo button
+                    'undo': Offset(
+                      MediaQuery.of(context).size.width - 80,
+                      MediaQuery.of(context).padding.top + -100,
+                    ),
+                    // position of the hint button
+                    'hint': Offset(
+                      MediaQuery.of(context).size.width - 80,
+                      MediaQuery.of(context).padding.top + -80,
+                    ),
+                    // position of the restart button
+                    'restart': Offset(
+                      MediaQuery.of(context).size.width - 80,
+                      MediaQuery.of(context).padding.top + -100,
+                    ),
                   },
                 ),
             ],

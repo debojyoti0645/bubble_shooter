@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LevelData {
   static const String _starsKey = 'stars';
   static const String _unlockedLevelKey = 'unlockedLevel';
+  static const String _bubblePointsKey = 'bubblePoints';
 
   // Get stars map from prefs
   static Future<Map<String, int>> getStars() async {
@@ -36,6 +37,24 @@ class LevelData {
     if (level >= currentUnlocked) {
       await prefs.setInt(_unlockedLevelKey, level + 1);
     }
+  }
+
+  // Get bubble points
+  static Future<int> getBubblePoints() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_bubblePointsKey) ?? 10; // Start with 10 points
+  }
+
+  // Set bubble points
+  static Future<void> setBubblePoints(int points) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_bubblePointsKey, points);
+  }
+
+  // Add or remove bubble points
+  static Future<void> updateBubblePoints(int change) async {
+    final currentPoints = await getBubblePoints();
+    await setBubblePoints(currentPoints + change);
   }
 }
 

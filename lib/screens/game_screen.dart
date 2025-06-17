@@ -1,8 +1,10 @@
 import 'dart:collection';
 
 import 'package:bubble_shooter/models/tube_shape.dart';
+import 'package:bubble_shooter/widgets/coin_notification.dart';
 import 'package:bubble_shooter/widgets/tutorial_overlay.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/ball.dart';
 import '../models/level_data.dart';
@@ -356,15 +358,21 @@ class _GameScreenState extends State<GameScreen>
   }
 
   // Add this method to _GameScreenState class
-  void _showHint() {
+  void _showHint() async {
     if (remainingHints <= 0 || pickedBall != null) return;
+    
+    final points = await LevelData.getBubblePoints();
+    if (points < 1) {
+      CoinNotification.show(context, 1);
+      return;
+    }
 
     setState(() {
-      // Find a valid move
       hintMove = _findValidMove();
       if (hintMove != null) {
         remainingHints--;
-        // Show the hint for 2 seconds then clear it
+        LevelData.updateBubblePoints(-1); // Deduct 1 point for using hint
+        
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             setState(() {
@@ -398,6 +406,62 @@ class _GameScreenState extends State<GameScreen>
         _showingTutorial = true;
       });
     }
+  }
+
+  // Add this method to the _GameScreenState class
+  void _showSkipLevelDialog() async {
+    final points = await LevelData.getBubblePoints();
+    if (points < 5) {
+      CoinNotification.show(context, 5);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2A0845),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Text(
+          'Skip Level',
+          style: GoogleFonts.pressStart2p(
+            color: Colors.white,
+            fontSize: 16,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Use 5 Bubble Points to skip this level?',
+              style: TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Note: No stars will be awarded',
+              style: TextStyle(color: Colors.amber, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              await LevelData.updateBubblePoints(-5);
+              await LevelData.unlockNextLevel(widget.level);
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Return to level screen
+            },
+            child: Text(
+              'Skip',
+              style: TextStyle(color: Colors.amber.shade400),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -647,6 +711,56 @@ class _GameScreenState extends State<GameScreen>
                     ),
                   },
                 ),
+
+              // Skip level button
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: _showSkipLevelDialog,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.purple.withOpacity(0.8),
+                            Colors.blue.withOpacity(0.8),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(color: Colors.white30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            offset: const Offset(0, 2),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.skip_next_rounded,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Skip Level (5 💫)',
+                            style: GoogleFonts.pressStart2p(
+                              fontSize: 12,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

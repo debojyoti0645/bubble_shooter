@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/level_data.dart';
 import '../widgets/animated_star.dart';
+import '../widgets/bubble_points_display.dart';
+import '../widgets/coin_notification.dart';
 import 'game_screen.dart';
 
 class LevelScreen extends StatefulWidget {
@@ -66,7 +68,7 @@ class _LevelScreenState extends State<LevelScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           title: Text(
-            'Select Level',
+            'Level',
             style: GoogleFonts.pressStart2p(
               fontSize: 20,
               color: Colors.white,
@@ -84,6 +86,12 @@ class _LevelScreenState extends State<LevelScreen> {
             icon: Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => Navigator.pop(context),
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: BubblePointsDisplay(),
+            ),
+          ],
         ),
         body: GridView.builder(
           padding: const EdgeInsets.all(16),
@@ -99,13 +107,19 @@ class _LevelScreenState extends State<LevelScreen> {
 
             return GestureDetector(
               onTap: isLocked
-                  ? () => _showLockedDialog(context)
-                  : () => Navigator.push(
+                  ? () => _showLockedDialog(context, level)
+                  : () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => GameScreen(level: level),
                         ),
-                      ),
+                      );
+                      // Refresh level data when returning from game screen
+                      if (mounted) {
+                        _loadProgress();
+                      }
+                    },
               child: Container(
                 decoration: BoxDecoration(
                   gradient: isLocked
@@ -174,7 +188,54 @@ class _LevelScreenState extends State<LevelScreen> {
     );
   }
 
-  void _showLockedDialog(BuildContext context) {
+  void _showSkipLevelDialog(BuildContext context, int level) async {
+    final points = await LevelData.getBubblePoints();
+    if (points < 5) {
+      CoinNotification.show(context, 5);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Color(0xFF2A0845),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Text(
+          'Skip Level',
+          style: GoogleFonts.pressStart2p(
+            color: Colors.white,
+            fontSize: 16,
+          ),
+        ),
+        content: Text(
+          'Use 5 Bubble Points to unlock this level?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              await LevelData.updateBubblePoints(-5);
+              await LevelData.unlockNextLevel(level);
+              Navigator.pop(context);
+              setState(() {
+                unlockedLevel = level + 1;
+              });
+            },
+            child: Text(
+              'Skip',
+              style: TextStyle(color: Color(0xFFF9D423)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLockedDialog(BuildContext context, int level) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -193,16 +254,37 @@ class _LevelScreenState extends State<LevelScreen> {
             ),
           ],
         ),
-        content: Text(
-          'Complete the previous level to unlock this one!',
-          style: TextStyle(color: Colors.white70),
-          textAlign: TextAlign.center,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Complete the previous level to unlock this one!',
+              style: TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Or use 5 Bubble Points to skip',
+              style: TextStyle(color: Colors.amber),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'OK',
+              'Cancel',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showSkipLevelDialog(context, level);
+            },
+            child: Text(
+              'Skip Level',
               style: TextStyle(color: Color(0xFFF9D423)),
             ),
           ),

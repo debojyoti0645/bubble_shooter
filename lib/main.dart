@@ -21,3 +21,8 @@ class MainApp extends StatelessWidget {
     );
   }
 }
+
+// App Ad Unit ID = ca-app-pub-7104002362240268~3062604967
+// Banner Ad Unit ID = ca-app-pub-7104002362240268/6147965125
+// Interstitial Ad Unit ID = ca-app-pub-7104002362240268/5522915649
+// Rewarded Ad Unit ID = ca-app-pub-7104002362240268/1729357907

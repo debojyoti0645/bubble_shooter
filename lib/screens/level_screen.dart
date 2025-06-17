@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../models/level_data.dart';
+import '../services/ad_helper.dart';
 import '../widgets/animated_star.dart';
 import '../widgets/bubble_points_display.dart';
 import '../widgets/coin_notification.dart';
@@ -17,11 +19,104 @@ class LevelScreen extends StatefulWidget {
 class _LevelScreenState extends State<LevelScreen> {
   int unlockedLevel = 1;
   Map<String, int> stars = {};
+  BannerAd? _bannerAd;
+  bool _isBannerAdReady = false;
+  List<NativeAd?> _nativeAds = [];
+  List<bool> _isNativeAdReady = [];
+  static const int _adInterval = 6;
 
   @override
   void initState() {
     super.initState();
     _loadProgress();
+    _loadBannerAd();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initializeNativeAds();
+  }
+
+  void _initializeNativeAds() {
+    // Calculate visible items based on screen height
+    final screenHeight = MediaQuery.of(context).size.height;
+    final visibleItems = (screenHeight / 120).ceil() * 3;
+    final numberOfAds = (visibleItems / _adInterval).ceil();
+    
+    // Only initialize if not already initialized with same size
+    if (_nativeAds.length != numberOfAds) {
+      // Dispose existing ads
+      for (var ad in _nativeAds) {
+        ad?.dispose();
+      }
+      
+      _nativeAds = List.generate(numberOfAds, (index) => null);
+      _isNativeAdReady = List.generate(numberOfAds, (index) => false);
+
+      for (int i = 0; i < numberOfAds; i++) {
+        _loadNativeAd(i);
+      }
+    }
+  }
+
+  void _loadNativeAd(int index) {
+    if (_nativeAds[index] != null) {
+      _nativeAds[index]!.dispose();
+    }
+
+    _nativeAds[index] = NativeAd(
+      adUnitId: AdHelper.nativeAdUnitId,
+      factoryId: 'listTile',
+      request: const AdRequest(),
+      listener: NativeAdListener(
+        onAdLoaded: (ad) {
+          setState(() {
+            _isNativeAdReady[index] = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _nativeAds[index] = null;
+          // Retry loading after a delay
+          Future.delayed(Duration(seconds: 30), () {
+            if (mounted) {
+              _loadNativeAd(index);
+            }
+          });
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    for (var ad in _nativeAds) {
+      ad?.dispose();
+    }
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: AdHelper.bannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdReady = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _isBannerAdReady = false;
+        },
+      ),
+    );
+
+    _bannerAd?.load();
   }
 
   Future<void> _loadProgress() async {
@@ -93,96 +188,142 @@ class _LevelScreenState extends State<LevelScreen> {
             ),
           ],
         ),
-        body: GridView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: levels.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 20,
-            crossAxisSpacing: 20,
-          ),
-          itemBuilder: (context, index) {
-            final level = levels[index];
-            final isLocked = level > unlockedLevel;
-
-            return GestureDetector(
-              onTap: isLocked
-                  ? () => _showLockedDialog(context, level)
-                  : () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => GameScreen(level: level),
+        body: Column(
+          children: [
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: levels.length + (levels.length / _adInterval).floor(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 20,
+                  childAspectRatio: 0.8,
+                ),
+                itemBuilder: (context, index) {
+                  // Calculate if this position should be an ad
+                  final adIndex = (index + 1) / (_adInterval + 1);
+                  if (adIndex.floor() == adIndex) {
+                    final nativeAdIndex = adIndex.toInt() - 1;
+                    if (nativeAdIndex < _nativeAds.length && _isNativeAdReady[nativeAdIndex]) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.purple.withOpacity(0.3),
+                              Colors.blue.withOpacity(0.3),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              offset: Offset(0, 4),
+                              blurRadius: 5.0,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: AdWidget(ad: _nativeAds[nativeAdIndex]!),
                         ),
                       );
-                      // Refresh level data when returning from game screen
-                      if (mounted) {
-                        _loadProgress();
-                      }
-                    },
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: isLocked
-                      ? LinearGradient(
-                          colors: [
-                            Colors.grey.shade800,
-                            Colors.grey.shade700,
-                          ],
-                        )
-                      : LinearGradient(
-                          colors: [
-                            Color.fromARGB(255, 78, 178, 255),
-                            Color.fromARGB(255, 54, 110, 240),
-                          ],
-                        ),
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      offset: Offset(0, 4),
-                      blurRadius: 5.0,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      isLocked
-                          ? Container(
-                              padding: EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.black38,
-                                shape: BoxShape.circle,
+                    }
+                    return const SizedBox.shrink();
+                  }
+
+                  // Calculate the actual level index
+                  final levelIndex = index - (index / (_adInterval + 1)).floor();
+                  final level = levels[levelIndex];
+                  final isLocked = level > unlockedLevel;
+
+                  return GestureDetector(
+                    onTap: isLocked
+                        ? () => _showLockedDialog(context, level)
+                        : () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => GameScreen(level: level),
                               ),
-                              child: Icon(
-                                Icons.lock_rounded,
-                                size: 28,
-                                color: Colors.white70,
-                              ),
-                            )
-                          : Text(
-                              '$level',
-                              style: GoogleFonts.pressStart2p(
-                                fontSize: 24,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black26,
-                                    offset: Offset(1, 1),
-                                    blurRadius: 2,
-                                  ),
+                            );
+                            // Refresh level data when returning from game screen
+                            if (mounted) {
+                              _loadProgress();
+                            }
+                          },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: isLocked
+                            ? LinearGradient(
+                                colors: [
+                                  Colors.grey.shade800,
+                                  Colors.grey.shade700,
+                                ],
+                              )
+                            : LinearGradient(
+                                colors: [
+                                  Color.fromARGB(255, 78, 178, 255),
+                                  Color.fromARGB(255, 54, 110, 240),
                                 ],
                               ),
-                            ),
-                      SizedBox(height: 8),
-                      if (!isLocked) _buildStarRow(level),
-                    ],
-                  ),
-                ),
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            offset: Offset(0, 4),
+                            blurRadius: 5.0,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            isLocked
+                                ? Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black38,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.lock_rounded,
+                                      size: 28,
+                                      color: Colors.white70,
+                                    ),
+                                  )
+                                : Text(
+                                    '$level',
+                                    style: GoogleFonts.pressStart2p(
+                                      fontSize: 24,
+                                      color: Colors.white,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black26,
+                                          offset: Offset(1, 1),
+                                          blurRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                            SizedBox(height: 8),
+                            if (!isLocked) _buildStarRow(level),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+            if (_isBannerAdReady)
+              Container(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+          ],
         ),
       ),
     );

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 class Ball {
   final Color color;
+  final AnimationController? controller;  // Add this property
 
-  Ball(this.color);
+  Ball(this.color, {this.controller});  // Update constructor
 
   // Equality based on color for matching balls
   @override

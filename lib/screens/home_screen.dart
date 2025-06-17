@@ -3,12 +3,55 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../services/ad_helper.dart';
 import 'level_screen.dart';
 import 'settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  BannerAd? _bannerAd;
+  bool _isBannerAdReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBannerAd();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: AdHelper.bannerAdUnitId,
+      request: AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdReady = true;
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          _isBannerAdReady = false;
+          ad.dispose();
+        },
+      ),
+    );
+
+    _bannerAd?.load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +116,18 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
+          // Add this at the bottom of the Stack
+          if (_isBannerAdReady)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            ),
         ],
       ),
     );
@@ -119,71 +174,27 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class BouncingBallsBackground extends StatefulWidget {
+class BouncingBallsBackground extends StatelessWidget {
   const BouncingBallsBackground({super.key});
-
-  @override
-  State<BouncingBallsBackground> createState() => _BouncingBallsBackgroundState();
-}
-
-class _BouncingBallsBackgroundState extends State<BouncingBallsBackground>
-    with TickerProviderStateMixin {
-  final List<Ball> balls = [];
-  final int numberOfBalls = 15;
-
-  @override
-  void initState() {
-    super.initState();
-    for (int i = 0; i < numberOfBalls; i++) {
-      balls.add(Ball(this));
-    }
-  }
-
-  @override
-  void dispose() {
-    for (var ball in balls) {
-      ball.controller.dispose();
-    }
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
-      children: balls.map((ball) {
-        return AnimatedBuilder(
-          animation: ball.controller,
-          builder: (context, child) {
-            return Positioned(
-              left: ball.x,
-              top: ball.y,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-                child: Container(
-                  width: ball.size,
-                  height: ball.size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        ball.color.withOpacity(0.8),
-                        ball.color.withOpacity(0.3),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      }).toList(),
+      children: List.generate(15, (index) {
+        return BallWidget();
+      }),
     );
   }
 }
 
-class Ball {
+class BallWidget extends StatefulWidget {
+  const BallWidget({super.key});
+
+  @override
+  State<BallWidget> createState() => _BallWidgetState();
+}
+
+class _BallWidgetState extends State<BallWidget> with SingleTickerProviderStateMixin {
   late double x;
   late double y;
   late double dx;
@@ -192,7 +203,9 @@ class Ball {
   late Color color;
   late AnimationController controller;
 
-  Ball(TickerProvider vsync) {
+  @override
+  void initState() {
+    super.initState();
     final random = math.Random();
     size = random.nextDouble() * 30 + 20; // Random size between 20 and 50
     x = random.nextDouble() * 300;
@@ -202,16 +215,50 @@ class Ball {
     color = Colors.primaries[random.nextInt(Colors.primaries.length)];
 
     controller = AnimationController(
-      vsync: vsync,
+      vsync: this,
       duration: const Duration(seconds: 1000),
     )..addListener(() {
-        x += dx;
-        y += dy;
+        setState(() {
+          x += dx;
+          y += dy;
 
-        if (x < 0 || x > 300) dx *= -1;
-        if (y < 0 || y > 500) dy *= -1;
+          if (x < 0 || x > 300) dx *= -1;
+          if (y < 0 || y > 500) dy *= -1;
+        });
       });
 
     controller.repeat();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: x,
+      top: y,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                color.withOpacity(0.8),
+                color.withOpacity(0.3),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

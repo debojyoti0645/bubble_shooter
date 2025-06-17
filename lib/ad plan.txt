@@ -1,0 +1,19 @@
+Strategic Ad Placement Tips:
+Interstitial Ads:
+
+After completing levels
+When returning to menu
+After failed attempts
+Between level transitions
+Rewarded Ads:
+
+Extra hints (+3)
+Additional undos (+5)
+Skip difficult level
+Continue after failing
+Unlock special colors/themes
+Banner Ads:
+
+Bottom of game screen
+Level selection screen
+Settings screen

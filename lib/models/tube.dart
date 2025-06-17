@@ -1,11 +1,16 @@
 import 'ball.dart';
+import 'tube_shape.dart';
 
 class Tube {
   final int capacity;
   final List<Ball> balls;
+  final TubeShape shape;
 
-  Tube({required this.capacity, List<Ball>? balls})
-      : balls = balls ?? [];
+  Tube({
+    required this.capacity, 
+    List<Ball>? balls,
+    this.shape = TubeShape.standard,
+  }) : balls = balls ?? [];
 
   // Check if tube is full
   bool get isFull => balls.length >= capacity;

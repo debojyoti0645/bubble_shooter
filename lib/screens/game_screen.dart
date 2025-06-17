@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:bubble_shooter/models/tube_shape.dart';
 import 'package:bubble_shooter/widgets/tutorial_overlay.dart';
 import 'package:flutter/material.dart';
 
@@ -124,8 +125,17 @@ class _GameScreenState extends State<GameScreen>
     }
     balls.shuffle();
 
-    // Initialize tubes
-    tubes = List.generate(tubeCount, (_) => Tube(capacity: capacity));
+    // Get the tube shape for this level
+    final tubeShape = TubeShape.getShapeForLevel(widget.level);
+
+    // Initialize tubes with the appropriate shape
+    tubes = List.generate(
+      tubeCount,
+      (_) => Tube(
+        capacity: capacity,
+        shape: tubeShape,
+      ),
+    );
 
     // Fill tubes with balls
     int ballIndex = 0;

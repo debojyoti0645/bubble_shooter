@@ -1,15 +1,79 @@
+import 'package:bubble_shooter/services/ad_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  _SettingsScreenState createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool soundEnabled = true;
+  NativeAd? _settingsNativeAd;
+  bool _isSettingsAdLoaded = false;
+  BannerAd? _settingsBannerAd;
+  bool _isSettingsBannerAdLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettingsNativeAd();
+    _loadSettingsBannerAd();
+  }
+
+  void _loadSettingsNativeAd() {
+    _settingsNativeAd = NativeAd(
+      adUnitId: AdHelper.settingsNativeAdUnitId,
+      factoryId: 'settings',
+      request: const AdRequest(),
+      listener: NativeAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isSettingsAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _settingsNativeAd = null;
+          // Retry loading after delay
+          Future.delayed(Duration(seconds: 30), () {
+            if (mounted) {
+              _loadSettingsNativeAd();
+            }
+          });
+        },
+      ),
+    )..load();
+  }
+
+  void _loadSettingsBannerAd() {
+    _settingsBannerAd = BannerAd(
+      adUnitId: AdHelper.settings2BannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isSettingsBannerAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _settingsBannerAd = null;
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _settingsNativeAd?.dispose();
+    _settingsBannerAd?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +129,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setState(() => soundEnabled = value);
                 }),
               ),
+              const SizedBox(height: 20),
+              // Native Ad
+              if (_isSettingsAdLoaded && _settingsNativeAd != null)
+                Container(
+                  margin: EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.black12,
+                  ),
+                  height: 100,
+                  child: AdWidget(ad: _settingsNativeAd!),
+                ),
+              const Spacer(),
+              // Banner Ad
+              if (_isSettingsBannerAdLoaded && _settingsBannerAd != null)
+                Container(
+                  alignment: Alignment.bottomCenter,
+                  width: _settingsBannerAd!.size.width.toDouble(),
+                  height: _settingsBannerAd!.size.height.toDouble(),
+                  child: AdWidget(ad: _settingsBannerAd!),
+                ),
+              const SizedBox(height: 10),
             ],
           ),
         ),

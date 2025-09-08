@@ -57,33 +57,23 @@ Challenge yourself with hundreds of levels featuring unique tube shapes, power-u
 - Animated background with floating balls
 - Clean menu navigation
 - Bubble points display with rewards access
-  ![IMG-20250908-WA0003](https://github.com/user-attachments/assets/1b12d764-e7db-4cf8-9895-1cd4cc03262d)
-
 
 ### 🎯 Game Screen
 - Interactive tube-based puzzle interface
 - Real-time move tracking and animations
 - Power-up buttons (Undo, Hint, Restart)
 - Skip level option for challenging puzzles
-  ![IMG-20250908-WA0005](https://github.com/user-attachments/assets/edba4923-1f42-48b3-9eac-f58e4e7865f5)
-
 
 ### 📋 Level Selection
 - Grid-based level browser with star ratings
 - Lock/unlock visual indicators
 - Native ads integrated between level selections
 - Progress tracking across thousands of levels
-  ![IMG-20250908-WA0004](https://github.com/user-attachments/assets/4a753797-1bac-4620-b2c8-a8251ce66a8d)
-  ![IMG-20250908-WA0006](https://github.com/user-attachments/assets/66c67e9f-0bcb-46aa-b8c8-bdc7f4568deb)
-
-
 
 ### 🎁 Rewards Screen
 - Watch rewarded video ads to earn bubble points
 - Cooldown timer between ad watches
 - Clear earning progress tracking
-  ![IMG-20250908-WA0007](https://github.com/user-attachments/assets/9c99da59-3b11-4d50-aadc-2f57620fb481)
-
 
 ### ⚙️ Settings Screen
 - Audio controls for background music

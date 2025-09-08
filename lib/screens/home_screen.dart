@@ -1,12 +1,16 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:bubble_shooter/widgets/bubble_points_display.dart';
+import 'package:bubble_shooter/widgets/welcome_bonus_notification.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../services/ad_helper.dart';
+import '../services/points_service.dart';
 import 'level_screen.dart';
+import 'rewards_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -24,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _loadBannerAd();
+    _checkWelcomeBonus();
   }
 
   void _loadBannerAd() {
@@ -47,10 +52,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _bannerAd?.load();
   }
 
-  @override
-  void dispose() {
-    _bannerAd?.dispose();
-    super.dispose();
+  Future<void> _checkWelcomeBonus() async {
+    final hasBeenClaimed = await PointsService.hasClaimedWelcomeBonus();
+    if (!hasBeenClaimed) {
+      await PointsService.claimWelcomeBonus();
+      // Show notification after a short delay to ensure screen is built
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          WelcomeBonusNotification.show(context);
+        }
+      });
+    }
   }
 
   @override
@@ -71,52 +83,97 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
             child: SafeArea(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Title
-                    Text(
-                      'Bubble\nSort',
-                      style: GoogleFonts.pressStart2p(
-                        fontSize: 48,
-                        color: Colors.white,
-                        shadows: const [
-                          Shadow(
-                            color: Colors.black26,
-                            offset: Offset(2, 2),
-                            blurRadius: 4,
+              child: Column(
+                children: [
+                  // Add bubble points display at the top
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RewardsScreen()),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.purple.withOpacity(0.7),
+                                  Colors.blue.withOpacity(0.7),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.white30),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                BubblePointsDisplay(showBackground: false),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.add_circle_outline,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 60),
-                    // Play Button
-                    _buildButton(
-                      context,
-                      'Play',
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LevelScreen()),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Title
+                          Text(
+                            'Bubble\nSort',
+                            style: GoogleFonts.pressStart2p(
+                              fontSize: 48,
+                              color: Colors.white,
+                              shadows: const [
+                                Shadow(
+                                  color: Colors.black26,
+                                  offset: Offset(2, 2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 60),
+                          // Play Button
+                          _buildButton(
+                            context,
+                            'Play',
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const LevelScreen()),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          // Settings Button
+                          _buildButton(
+                            context,
+                            'Settings',
+                            () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    // Settings Button
-                    _buildButton(
-                      context,
-                      'Settings',
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-          // Add this at the bottom of the Stack
           if (_isBannerAdReady)
             Positioned(
               bottom: 0,
@@ -133,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildButton(BuildContext context, String text, VoidCallback onPressed) {
+  Widget _buildButton(BuildContext context, String text, VoidCallback? onPressed) {
     return Container(
       width: 200,
       height: 50,

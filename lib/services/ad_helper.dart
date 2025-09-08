@@ -40,4 +40,14 @@ class AdHelper {
     }
     throw UnsupportedError('This app only supports Android platform');
   }
+
+  static String get rewardedAdUnitId {
+    if (Platform.isAndroid) {
+      // real ad unit ID for Android
+      //return 'ca-app-pub-7104002362240268/1729357907';
+      // For testing
+      return 'ca-app-pub-3940256099942544/5224354917';
+    }
+    throw UnsupportedError('This app only supports Android platform');
+  }
 }

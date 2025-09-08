@@ -8,18 +8,25 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
-        // Register the native ad factory
+        // Register the native ad factories
         GoogleMobileAdsPlugin.registerNativeAdFactory(
             flutterEngine, 
             "listTile",
             NativeAdFactory(context)
+        )
+        
+        GoogleMobileAdsPlugin.registerNativeAdFactory(
+            flutterEngine, 
+            "settings",
+            SettingsNativeAdFactory(context)
         )
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         super.cleanUpFlutterEngine(flutterEngine)
         
-        // Unregister the native ad factory
+        // Unregister the native ad factories
         GoogleMobileAdsPlugin.unregisterNativeAdFactory(flutterEngine, "listTile")
+        GoogleMobileAdsPlugin.unregisterNativeAdFactory(flutterEngine, "settings")
     }
 }

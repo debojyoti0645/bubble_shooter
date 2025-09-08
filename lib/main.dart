@@ -1,10 +1,14 @@
 import 'package:bubble_shooter/screens/home_screen.dart';
+import 'package:bubble_shooter/services/points_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MobileAds.instance.initialize();
+  
+  // Check and award welcome bonus
+  await PointsService.claimWelcomeBonus();
   
   runApp(const MainApp());
 }
